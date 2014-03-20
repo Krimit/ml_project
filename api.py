@@ -27,6 +27,3 @@
 
 
 ########################
-api_key = 'v0N7wNo4EROVSLXOUO254n6tc3Ia'
-consumer_key = 'KXG5H7YKajlO2V6anrqL9Z8nmVUa'
-consumer_secret = 'u5M_ViUm_7eicv3vSVHNWKwvPLka'
