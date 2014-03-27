@@ -27,3 +27,21 @@
 
 
 ########################
+#stubhub: need 7 digit event id. Example id: 4270639
+
+import pprint
+
+import urllib2
+
+query_params = { 'eventid': 4270639
+}
+
+req = urllib2.Request('https://api.stubhub.com/search/inventory/v1?eventid=4413647')
+req.add_header('Authorization', 'Bearer k2Yor8Vwx3MqhjHOlCf7700r33Ea')
+req.add_header('Accept', 'application/json')
+req.add_header('Accept-Encoding', 'application/json')
+
+res = urllib2.urlopen(req).read()
+
+
+pprint.pprint(res.listing)
