@@ -27,21 +27,40 @@ PATH = 'data/'
 # and aggregates it in some to be determined fashion.
 def read_gdelt_file(filename):
 
-	ys = [] #the true label
-	data = []
-	print filename
+	aggreg = {}
+	headers = []
+	header_file = PATH + 'CSV.header.historical.txt'
+	with open(header_file, 'r') as data:
+		for basic_line in data:
+			line = basic_line.split()
+			for heading in line:
+				aggreg[heading] = []
+				headers.append(heading)
+				
+	#print aggreg
+
+		
+	
 	filename = PATH + filename
 	with open(filename, 'r') as data:
 		for basic_line in data:
 			try:
 
 				line = basic_line.split('\t')
-
 				print line
+				for index, item in enumerate(line):
+					#print item, index
+					#print headers[index]
+					aggreg[headers[index]].extend(item)
+
+				#print aggreg	
+
+
+				
 				return
 			except:
 				pass
-					
+
 			
 
 
