@@ -1,0 +1,14 @@
+Changes to project:
+
+1) find additional sources of data for unemployment or financials.
+	like what? market growth?
+	- possible new question: how do events between pairs of countries affect exchange rates?
+
+2) Gdelt is huge - use dimensionality reduction techniques to visualize it.
+	- Probably not too difficult, but probably won't lead to anything revolutionary.
+
+3) Arab spring meets clustering: Define some distance function that can compare individual events and see how similar the Egyptian revolution,  occupy Wall Street, etc are. Reduce results + visualize.
+
+4) Dynamics of Collective Action dataset - another social dataset. Could compare them somehow or use it in some other way.
+
+5) Missing data - some of the records in the dataset have missing data. We could try to predict values for missing columns.
