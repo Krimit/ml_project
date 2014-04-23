@@ -18,37 +18,12 @@ import pandas
 import csv
 import string
 
-np.set_printoptions(threshold=np.nan)
+#np.set_printoptions(threshold=np.nan)
 
-id=0
-tweet=1
-state=2
-location=3
-s1=4
-s2=5
-s3=6
-s4=7
-s5=8
-w1=9
-w2=10
-w3=11
-w4=12
-k1=13
-k2=14
-k3=15
-k4=16
-k5=17
-k6=18
-k7=19
-k8=20
-k9=21
-k10=22
-k11=23
-k12=24
-k13=25
-k14=26
-k15=27
 
+
+_corpus = None
+_stateCorpus = None
 _positive_words = []
 _negative_words = []
 
@@ -77,10 +52,10 @@ def readData(filename):
 	prediction = []
 
 	np_array = pandas.io.parsers.read_csv(filename).as_matrix()
-	np_array = np.delete(np_array,0,1)
+	#np_array = np.delete(np_array,0,1)
 	
-	data = np_array[:,0:3]
-	labels = np_array[:,3:]
+	data = np_array[:,0:4]
+	labels = np_array[:,4:]
 	# print np_array[0]
 	# print data[0]
 	# print labels[0]
@@ -98,32 +73,36 @@ def readData(filename):
 #
 # Note that location data is included in corpus.
 #
-def buildCorpus(data, cutoff=30):
-
-
-
-	print 'building corpus with threshold = ', cutoff
+def buildCorpus(data, cutoff=30, build=True):
 
 	corpus = {}
 	tweets = []
 	locations = []
 	locations1 = []
 	locations2 = []
+	ids = []
+
+	#print 'building corpus with threshold = ', cutoff
+	if not build:
+		#print 'not building, reading from file'
+		with open('corpus.txt', 'r') as f:
+			corpus = f.read().split('\n')
+
+	
 	
 	for line in data:
 		#print line[0]
 		#print line[1]
 		#print line[2]
 
-
-		#NOTE: currently location data NOT used in building corpus
-		loc1 = cleanNans(line[1])
+		loc1 = cleanNans(line[2])
 		locations1.append(loc1)
 
-		loc2 = cleanNans(line[2])
+		loc2 = cleanNans(line[3])
 		locations2.append(loc2)		
+		ids.append(line[0])
 
-		l = cleanNans(line[0]).split()
+		l = cleanNans(line[1]).split()
 		x = list()
 		for word in l:
 			word = word.lower()
@@ -131,24 +110,64 @@ def buildCorpus(data, cutoff=30):
 			#print word , ' ', to_token
 			if not to_token in x:
 				x.append(to_token)
-			
-		for word in x:	
-			if word in corpus:
-				corpus[word] += 1
-			else:
-				corpus[word] = 1	
 		tweets.append(x)
-
-
+		
+		if build:	
+			for word in x:	
+				if word in corpus:
+					corpus[word] += 1
+				else:
+					corpus[word] = 1	
+	
+	if build:	
 	# remove words without enough occurrences
-	updated_corpus = corpus.copy()
-	for word in corpus:
-		if corpus[word] < cutoff:
-			del updated_corpus[word]
-	corpus = updated_corpus
-	corpus = corpus.keys()
+		updated_corpus = corpus.copy()
+		for word in corpus:
+			if corpus[word] < cutoff:
+				del updated_corpus[word]
+		corpus = updated_corpus
+		corpus = corpus.keys()
 
-	return corpus, tweets, zip(locations1, locations2)		
+		with open('corpus.txt', 'w') as f:
+			for line in corpus:
+				print>>f,line   
+	#print 'done with corpus building'
+	#location1 = state, location2 = city/state/location
+	return corpus, tweets, zip(locations1, locations2), np.array(ids)		
+
+def noCorpus(data):
+
+	tweets = []
+	locations = []
+	locations1 = []
+	locations2 = []
+	ids = []
+
+	
+	for line in data:
+		#print line[0]
+		#print line[1]
+		#print line[2]
+
+		loc1 = cleanNans(line[2])
+		locations1.append(loc1)
+
+		loc2 = cleanNans(line[3])
+		locations2.append(loc2)		
+		ids.append(line[0])
+
+		l = cleanNans(line[1]).split()
+		x = list()
+		for word in l:
+			word = word.lower()
+			to_token=filter(is_not_punct,word)
+			#print word , ' ', to_token
+			if not to_token in x:
+				x.append(to_token)
+		tweets.append(x)
+		
+	#location1 = state, location2 = city/state/location
+	return tweets, zip(locations1, locations2), np.array(ids)	
 
 def cleanNans(d):
 	if type(d) is float and math.isnan(d):
@@ -162,6 +181,23 @@ def is_not_punct(char):
 	elif char in string.punctuation: return False
 	else: return True
 
+def buildStateCorpus(states):
+	seenStates = list()
+	for state in states:
+		if not state[0] in seenStates:
+			seenStates.append(state[0])
+	return seenStates	
+
+def buildStateFeatures(stateCorpus, locations):
+	statesFeatures = np.zeros( (len(locations),len(stateCorpus)) )
+	row = 0
+	for s in locations:
+		if s[0] in stateCorpus:
+			statesFeatures[row][stateCorpus.index(s[0])] = 1
+		row += 1
+	
+	return statesFeatures		
+
 #
 #
 #
@@ -172,11 +208,14 @@ def buildFeatureVectors(corpus, orig_data):
 	#build feature vectors
 	length = len(corpus)
 	height = len(orig_data)
-
+	#print length, ' ', height
+	#print 'building feature vect'
 	
 	row = 0
 	data = np.zeros( (height,length) )
+	#print 'data: ', data, 'shape: ', data.shape 
 	sentiment = np.zeros( (height,2) )
+	
 	positive_counter = 0
 	negative_counter = 0
 	for line in orig_data:
@@ -185,25 +224,67 @@ def buildFeatureVectors(corpus, orig_data):
 		col = 0
 		for word in line:
 			if word in corpus:
-				data[row][corpus.index(word)] = 1
+				#print 'adding to data'
+				data[row,corpus.index(word)] += 1
 			if word in _negative_words:
 				negative_counter += 1
 			if word in _positive_words:
-				positive_counter += 1		
-			col += 1	
-		sentiment[row][0] = positive_counter/len(line)
-		sentiment[row][1] = negative_counter/len(line)
+				positive_counter += 1			
+			col += 1		
+		sentiment[row,0] = float(positive_counter)/len(line)
+		sentiment[row,1] = float(negative_counter)/len(line)
 		row += 1
-		print row
+		#print row
 
 	#print sentiment
 	return data, sentiment			
 
+#
+# utility function for getting the feature matrix.
+# if dataCategory='train' a corpus is built from words in filename.
+# otherwise if dataCategory='test' a corpus is not built.
+# returns a datamatrix as a 2-d numpy array and a 2-d matrix
+# of labels.
+#
+def getFeatureMatrix( filename,dataCategory='train'):
+	global _corpus
+	data, labels = readData(filename)
+	labels = np.array(labels)
+	
+	if dataCategory == 'train':
+		print 'training'
+    	corpus, orig_data, locations, ids = buildCorpus(data,build=False)
+    	_corpus = corpus
+    	stateCorpus = buildStateCorpus(locations)
+    	_stateCorpus = stateCorpus
+    
+	if dataCategory == 'test':
+		print 'testing'
+		corpus = _corpus
+		stateCorpus = _stateCorpus
+
+	stateFeatures = buildStateFeatures(stateCorpus, locations)
+	#print 'got states'
+	#print stateFeatures.shape
+	#print len(orig_data)
+	#print stateFeatures
+	data, sentiment = buildFeatureVectors(corpus, orig_data)
+	#print data
+	#print sentiment
+	#print sentiment
+	#print stateFeatures.shape
+	#print sentiment.shape
+	#print data.shape
+	#print ids.shape
+	#print labels.shape
+	result = np.concatenate((data,stateFeatures,sentiment),axis=1)
+	#print 'result: ',result.shape
+	return ids, result, labels
+
+
 
 if __name__ == "__main__":
     import sys
-    data, labels = readData(str(sys.argv[1]))
-    corpus, orig_data, locations = buildCorpus(data)
+    ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[1]),'train')
+    ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[1]),'test')
     
-    data, sentiment = buildFeatureVectors(corpus, orig_data)
-
