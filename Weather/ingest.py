@@ -239,12 +239,25 @@ def buildFeatureVectors(corpus, orig_data):
 	#print sentiment
 	return data, sentiment			
 
+def writeDocMatrixToFile(dataMatrix,labels,jobType='train'):
+
+	filename = 'documentMatrix_'+jobType+'.txt'
+	#with open(filename, 'w') as f:
+	#	for line in datamatrix:
+	#		print>>f,line   
+	np.savetxt(filename, dataMatrix, newline=" ")
+	filename = 'documentLabels_'+jobType+'.txt'
+	np.savetxt(filename, labels, newline=" ")
+
+
 #
 # utility function for getting the feature matrix.
 # if dataCategory='train' a corpus is built from words in filename.
 # otherwise if dataCategory='test' a corpus is not built.
 # returns a datamatrix as a 2-d numpy array and a 2-d matrix
 # of labels.
+#
+# Returned: id array, data array, labels array
 #
 def getFeatureMatrix( filename,dataCategory='train'):
 	global _corpus
@@ -285,6 +298,11 @@ def getFeatureMatrix( filename,dataCategory='train'):
 
 if __name__ == "__main__":
     import sys
+    jobType = 'train'
+    filename = 'documentMatrix_'+jobType+'.txt'
+    print filename
     ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[1]),'train')
-    ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[1]),'test')
+    writeDocMatrixToFile(dataMatrix,labels,'train')
+    ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[2]),'test')
+    writeDocMatrixToFile(dataMatrix,labels,'test')
     
