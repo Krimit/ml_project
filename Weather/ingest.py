@@ -21,6 +21,7 @@ import string
 #np.set_printoptions(threshold=np.nan)
 
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.stem.lancaster import LancasterStemmer
 from scipy import sparse
 
@@ -318,7 +319,7 @@ def getFeatureMatrix2( trainFilename, testFilename):
 	train_tweets = train[:,1]
 	train_labels = train[:,4:]
 	print "done reading train"
-	np.save('train_labels', train_labels)
+	#np.save('train_labels', train_labels)
 
 	test = pandas.io.parsers.read_csv(testFilename,header=None).as_matrix()
 	#np_array = np.delete(np_array,0,1)
@@ -327,7 +328,7 @@ def getFeatureMatrix2( trainFilename, testFilename):
 	test_tweets = test[:,1]
 	test_labels = test[:,4:]
 	print "done reading test"
-	np.save('test_labels', test_labels)
+	#np.save('test_labels', test_labels)
 
 	#combine strings in orig_data
 	# tweets = []
@@ -345,8 +346,8 @@ def getFeatureMatrix2( trainFilename, testFilename):
 	steemedTestTweets = stemIt(test_tweets)
 	print "done stemming tweets"
 
-	sentiments = buildSentiments(steemedTestTweets)
-	np.save('test_sentiments', sentiments)
+	#sentiments = buildSentiments(steemedTestTweets)
+	#np.save('test_sentiments', sentiments)
 
 	# sentiments = buildSentiments(steemedTweets)
 	# np.save('train_sentiments', sentiments)
@@ -356,10 +357,10 @@ def getFeatureMatrix2( trainFilename, testFilename):
 	
 	# print steemedTweets[0]
 
-	state_corpus = buildStateCorpus(train[:,2])
+	#state_corpus = buildStateCorpus(train[:,2])
 
-	states = buildStateFeatures(state_corpus,test[:,2])
-	np.save('test_statesFeatures', states)
+	#states = buildStateFeatures(state_corpus,test[:,2])
+	#np.save('test_statesFeatures', states)
 
 	#
 	#
@@ -376,6 +377,22 @@ def getFeatureMatrix2( trainFilename, testFilename):
 	#print corpus
 	#print tweets
 	#print X[0,:]
+
+	#
+	#
+	#
+	#vectorizer with TFIDF stuff:
+	vectorizer = TfidfVectorizer()
+	X = vectorizer.fit_transform(train_tweets) # or for stemmed: 
+	#X = vectorizer.fit_transform(steemedTweets)
+	np.save('train_regTFIDFMatrix', X)
+	vectorizer_test = TfidfVectorizer(vocabulary=vectorizer.vocabulary_)
+	X_test = vectorizer_test.fit_transform(test_tweets)
+	np.save('test_regTFIDFMatrix', X_test)
+	#print X_test
+	#print corpus
+	#print tweets
+	print X[0,:]
 
 def stemPosNegWords(data):
 	tweets = []
