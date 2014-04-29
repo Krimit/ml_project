@@ -20,6 +20,9 @@ import string
 
 #np.set_printoptions(threshold=np.nan)
 
+from sklearn.feature_extraction.text import CountVectorizer
+from nltk.stem.lancaster import LancasterStemmer
+from scipy import sparse
 
 
 _corpus = None
@@ -196,7 +199,7 @@ def buildStateFeatures(stateCorpus, locations):
 			statesFeatures[row][stateCorpus.index(s[0])] = 1
 		row += 1
 	
-	return statesFeatures		
+	return sparse.csr_matrix( statesFeatures )		
 
 #
 #
@@ -294,15 +297,169 @@ def getFeatureMatrix( filename,dataCategory='train'):
 	#print 'result: ',result.shape
 	return ids, result, labels
 
+def getFeatureMatrix2( trainFilename, testFilename):
+	global _corpus
+	global _negative_words
+	global _positive_words
 
+	#open sentiment files and store in global lists
+	f = 'negative.txt'
+	with open(f, 'r') as d:
+		_negative_words = d.read()
+
+	f = 'positive.txt'
+	with open(f, 'r') as d:
+		_positive_words = d.read()	
+
+	train = pandas.io.parsers.read_csv(trainFilename,header=None).as_matrix()
+	#np_array = np.delete(np_array,0,1)
+	
+	train_data = train[:,0:4]
+	train_tweets = train[:,1]
+	train_labels = train[:,4:]
+	print "done reading train"
+	np.save('train_labels', train_labels)
+
+	test = pandas.io.parsers.read_csv(testFilename,header=None).as_matrix()
+	#np_array = np.delete(np_array,0,1)
+	
+	test_data = test[:,0:4]
+	test_tweets = test[:,1]
+	test_labels = test[:,4:]
+	print "done reading test"
+	np.save('test_labels', test_labels)
+
+	#combine strings in orig_data
+	# tweets = []
+	# for tweet in orig_data:
+	# 	t = ' '.join(tweet)
+	# 	tweets.append(t)
+
+	# _negative_words = stemPosNegWords(_negative_words)
+	# #print _negative_words
+	# print "done stemming neg"
+	# _positive_words = stemPosNegWords(_positive_words)
+	# print "done stemming pos"
+	steemedTweets = stemIt(train_tweets)
+	print "done stemming tweets"
+	steemedTestTweets = stemIt(test_tweets)
+	print "done stemming tweets"
+
+	sentiments = buildSentiments(steemedTestTweets)
+	np.save('test_sentiments', sentiments)
+
+	# sentiments = buildSentiments(steemedTweets)
+	# np.save('train_sentiments', sentiments)
+	# print sentiments
+
+	# print train_tweets[0]
+	
+	# print steemedTweets[0]
+
+	state_corpus = buildStateCorpus(train[:,2])
+
+	states = buildStateFeatures(state_corpus,test[:,2])
+	np.save('test_statesFeatures', states)
+
+	#
+	#
+	#
+	#vectorizer stuff:
+	# vectorizer = CountVectorizer()
+	# #X = vectorizer.fit_transform(train_tweets) # or for stemmed: 
+	# X = vectorizer.fit_transform(steemedTweets)
+	# np.save('train_stemmedDocMatrix', X)
+	# vectorizer_test = CountVectorizer(vocabulary=vectorizer.vocabulary_)
+	# X_test = vectorizer_test.fit_transform(steemedTestTweets)
+	# np.save('test_stemmedDocMatrix', X_test)
+	# #print X_test
+	#print corpus
+	#print tweets
+	#print X[0,:]
+
+def stemPosNegWords(data):
+	tweets = []
+
+	st = LancasterStemmer()
+	#print data
+	for line in data.split():
+		x = list()
+		#print line
+		for word in line.split():
+			#print word
+			word = word.lower()
+			to_token=filter(is_not_punct,word)
+			steemed = st.stem(to_token)
+			#print to_token, ' -> ', steemed 
+			
+			x.append(steemed)
+		tweets.append(' '.join(x))
+	
+	return tweets	
+
+def stemIt(data):
+
+	tweets = []
+
+	st = LancasterStemmer()
+
+	for line in data:
+		x = list()
+		#print line
+		for word in line.split():
+			#print word
+			word = word.lower()
+			to_token=filter(is_not_punct,word)
+			steemed = st.stem(to_token)
+			#print to_token, ' -> ', steemed 
+			#return
+			x.append(steemed)
+		tweets.append(' '.join(x))
+	
+	return tweets	
+
+def buildSentiments(orig_data):
+	global _negative_words
+	global _positive_words
+
+	#build feature vectors
+	
+	height = len(orig_data)
+	#print length, ' ', height
+	print 'building feature vect'
+
+	
+	row = 0
+	sentiment = np.zeros( (height,2) )
+	
+	positive_counter = 0
+	negative_counter = 0
+	for line in orig_data:
+		#print line
+		positive_counter = 0
+		negative_counter = 0
+		col = 0
+		for word in line.split():
+			#print word
+			if word in _negative_words:
+				negative_counter += 1
+			if word in _positive_words:
+				positive_counter += 1			
+			col += 1		
+		sentiment[row,0] = float(positive_counter)/len(line)
+		sentiment[row,1] = float(negative_counter)/len(line)
+		row += 1
+		#print row
+
+	#print sentiment
+	return sentiment
 
 if __name__ == "__main__":
     import sys
     jobType = 'train'
-    filename = 'documentMatrix_'+jobType+'.txt'
-    print filename
-    ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[1]),'train')
-    writeDocMatrixToFile(dataMatrix,labels,'train')
-    ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[2]),'test')
-    writeDocMatrixToFile(dataMatrix,labels,'test')
+    
+    getFeatureMatrix2(str(sys.argv[1]),str(sys.argv[2]))
+    #writeDocMatrixToFile(dataMatrix,labels,'train')
+    #ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[2]),'test')
+    #writeDocMatrixToFile(dataMatrix,labels,'test')
     

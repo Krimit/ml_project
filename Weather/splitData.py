@@ -10,7 +10,8 @@ import random
 with open("train.csv", "r") as f:
     data = f.read().split('\n')
 
-#print data
+data.pop(0)
+#print data[0]
 data = filter(None, data)
 #data = [line for line in data.split('\n') if data.strip() != '']
 random.shuffle(data)
