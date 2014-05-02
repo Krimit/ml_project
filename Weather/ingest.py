@@ -24,6 +24,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.stem.lancaster import LancasterStemmer
 from scipy import sparse
+from sklearn.feature_extraction.text import HashingVectorizer
 
 
 _corpus = None
@@ -382,17 +383,27 @@ def getFeatureMatrix2( trainFilename, testFilename):
 	#
 	#
 	#vectorizer with TFIDF stuff:
-	vectorizer = TfidfVectorizer()
-	X = vectorizer.fit_transform(train_tweets) # or for stemmed: 
-	#X = vectorizer.fit_transform(steemedTweets)
-	np.save('train_regTFIDFMatrix', X)
-	vectorizer_test = TfidfVectorizer(vocabulary=vectorizer.vocabulary_)
-	X_test = vectorizer_test.fit_transform(test_tweets)
-	np.save('test_regTFIDFMatrix', X_test)
-	#print X_test
-	#print corpus
-	#print tweets
-	print X[0,:]
+	# vectorizer = TfidfVectorizer()
+	# X = vectorizer.fit_transform(train_tweets) # or for stemmed: 
+	# #X = vectorizer.fit_transform(steemedTweets)
+	# np.save('train_regTFIDFMatrix', X)
+	# vectorizer_test = TfidfVectorizer(vocabulary=vectorizer.vocabulary_)
+	# X_test = vectorizer_test.fit_transform(test_tweets)
+	# np.save('test_regTFIDFMatrix', X_test)
+	# #print X_test
+	# #print corpus
+	# #print tweets
+	# print X[0,:]
+
+	#
+	#
+	# n-grams
+	ngram_vectorizer = CountVectorizer(ngram_range=(1, 3), min_df=3, stop_words='english')
+	X = ngram_vectorizer.fit_transform(train_tweets)
+	np.save('train_1-3Gram', X)
+	ngram_test = CountVectorizer(vocabulary=ngram_vectorizer.vocabulary_)
+	X_test = ngram_test.fit_transform(test_tweets)
+	np.save('test_1-3Gram', X_test)
 
 def stemPosNegWords(data):
 	tweets = []
@@ -434,6 +445,11 @@ def stemIt(data):
 		tweets.append(' '.join(x))
 	
 	return tweets	
+
+def doBigrams(data):
+	hv = HashingVectorizer()
+	hv.transform(data)
+
 
 def buildSentiments(orig_data):
 	global _negative_words
