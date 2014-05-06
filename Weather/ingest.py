@@ -5,6 +5,12 @@
 #
 #
 
+#
+# data:
+# 1. split into 3 sets (80,10,10)
+# 2. Types of docMats: Stemmed, Unstemmed, TFIDF always, 1-3Grams (together and separate), min_df=1 
+#
+
 import os.path
 import math
 import operator
@@ -183,6 +189,8 @@ def cleanNans(d):
 def is_not_punct(char):
 	# keep dashes, all other punctuation gets removed
 	if char == '-': return True
+	if char == '#': return True #tweet hashtags
+	if char in string.digits: return True #keep numbers
 	elif char in string.punctuation: return False
 	else: return True
 
