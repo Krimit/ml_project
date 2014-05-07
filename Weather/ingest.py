@@ -31,6 +31,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.stem.lancaster import LancasterStemmer
 from scipy import sparse
 from sklearn.feature_extraction.text import HashingVectorizer
+import scipy.io
 
 
 _corpus = None
@@ -307,8 +308,7 @@ def getFeatureMatrix( filename,dataCategory='train'):
 	#print 'result: ',result.shape
 	return ids, result, labels
 
-def getFeatureMatrix2( trainFilename, testFilename):
-	global _corpus
+def getFeatureMatrix2( trainFilename, test1Filename, test2Filename):
 	global _negative_words
 	global _positive_words
 
@@ -330,13 +330,29 @@ def getFeatureMatrix2( trainFilename, testFilename):
 	print "done reading train"
 	#np.save('train_labels', train_labels)
 
-	test = pandas.io.parsers.read_csv(testFilename,header=None).as_matrix()
+	test1 = pandas.io.parsers.read_csv(test1Filename,header=None).as_matrix()
 	#np_array = np.delete(np_array,0,1)
 	
-	test_data = test[:,0:4]
-	test_tweets = test[:,1]
-	test_labels = test[:,4:]
-	print "done reading test"
+	test1_data = test1[:,0:4]
+	test1_tweets = test1[:,1]
+	test1_labels = test1[:,4:]
+	print "done reading test1"
+
+	test2 = pandas.io.parsers.read_csv(test2Filename,header=None).as_matrix()
+	#np_array = np.delete(np_array,0,1)
+	
+	test2_data = test2[:,0:4]
+	test2_tweets = test2[:,1]
+	test2_labels = test2[:,4:]
+	print "done reading test2"
+
+	#writeOutLabels(train_labels, test1_labels, test2_labels)
+	#createExtraFeatures(train_data, test1_data, test2_data)
+
+
+
+	doTFIDF(train_tweets, test1_tweets, test1_tweets)
+
 	#np.save('test_labels', test_labels)
 
 	#combine strings in orig_data
@@ -350,9 +366,9 @@ def getFeatureMatrix2( trainFilename, testFilename):
 	# print "done stemming neg"
 	# _positive_words = stemPosNegWords(_positive_words)
 	# print "done stemming pos"
-	steemedTweets = stemIt(train_tweets)
+	#steemedTweets = stemIt(train_tweets)
 	print "done stemming tweets"
-	steemedTestTweets = stemIt(test_tweets)
+	#steemedTestTweets = stemIt(test_tweets)
 	print "done stemming tweets"
 
 	#sentiments = buildSentiments(steemedTestTweets)
@@ -406,12 +422,23 @@ def getFeatureMatrix2( trainFilename, testFilename):
 	#
 	#
 	# n-grams
-	ngram_vectorizer = CountVectorizer(ngram_range=(1, 3), min_df=3, stop_words='english')
+	ngram_vectorizer = CountVectorizer(ngram_range=(1, 3), min_df=1, stop_words='english')
 	X = ngram_vectorizer.fit_transform(train_tweets)
-	np.save('train_1-3Gram', X)
+	print X.shape
+	#print len(X)
+	scipy.io.mmwrite('temp1',X)
+	 
+	#np.save('temp1', X)
+	#newX = np.load('temp1.npy')
+	newX = scipy.io.mmread('temp1').tolil()   
+	print ' after loading: ' ,newX.shape
 	ngram_test = CountVectorizer(vocabulary=ngram_vectorizer.vocabulary_)
 	X_test = ngram_test.fit_transform(test_tweets)
-	np.save('test_1-3Gram', X_test)
+	print X_test.shape
+	#print len(X_test)
+	np.save('temp2', X_test)
+	newX = np.load('temp2.npy')
+	print ' after loading: ' ,newX.flatten().shape
 
 def stemPosNegWords(data):
 	tweets = []
@@ -458,6 +485,83 @@ def doBigrams(data):
 	hv = HashingVectorizer()
 	hv.transform(data)
 
+def doTFIDF(train, test1, test2):
+	steemedTrain = stemIt(train)
+	print "done stemming tweets"
+	steemedTest1 = stemIt(test1)
+	print "done stemming tweets"
+	steemedTest2 = stemIt(test2)
+	print "done stemming tweets"
+
+	vectorizer = TfidfVectorizer(ngram_range=(1, 3), min_df=1)
+
+	X = vectorizer.fit_transform(train) 
+	Xtest1 = vectorizer.transform(test1)
+	Xtest2 = vectorizer.transform(test2)
+	scipy.io.mmwrite('train_reg_dataM',X, field='real')
+	scipy.io.mmwrite('test1_reg_dataM',Xtest1, field='real')
+	scipy.io.mmwrite('test2_reg_dataM',Xtest2, field='real')
+
+	vectorizer = TfidfVectorizer(ngram_range=(1, 3), min_df=1)
+
+	X = vectorizer.fit_transform(steemedTrain) 
+	Xtest1 = vectorizer.transform(steemedTest1)
+	Xtest2 = vectorizer.transform(steemedTest2)
+	scipy.io.mmwrite('train_stem_dataM',X, field='real')
+	scipy.io.mmwrite('test1_stem_dataM',Xtest1, field='real')
+	scipy.io.mmwrite('test2_stem_dataM',Xtest2, field='real')
+
+
+
+
+def writeOutLabels(train_labels, test1_labels, test2_labels):
+	print train_labels.dtype
+	scipy.io.mmwrite('train_labels',train_labels, field='real')
+	scipy.io.mmwrite('test1_labels',test1_labels, field='real')
+	scipy.io.mmwrite('test2_labels',test2_labels, field='real')
+
+def createExtraFeatures(train, test1, test2):
+	global _negative_words
+	global _positive_words
+
+	# sentiments
+	sentiments1 = buildSentiments(train[:,1])
+	sentiments2 = buildSentiments(test1[:,1])
+	sentiments3 = buildSentiments(test2[:,1])
+	scipy.io.mmwrite('Extra_sentiments_train',sentiments1)
+	scipy.io.mmwrite('Extra_sentiments_test1',sentiments2)
+	scipy.io.mmwrite('Extra_sentiments_test2',sentiments3)
+
+	# states
+	state_corpus = buildStateCorpus(train[:,2])
+	states1 = buildStateFeatures(state_corpus,train[:,2])
+	states2 = buildStateFeatures(state_corpus,test1[:,2])
+	states3 = buildStateFeatures(state_corpus,test2[:,2])
+	scipy.io.mmwrite('Extra_states_train',states1)
+	scipy.io.mmwrite('Extra_states_test1',states2)
+	scipy.io.mmwrite('Extra_states_test2',states3)
+
+	#word counts
+	counts1 = countWords(train[:,1])
+	counts2 = countWords(test1[:,1])
+	counts3 = countWords(test2[:,1])
+	scipy.io.mmwrite('Extra_counts_train',counts1)
+	scipy.io.mmwrite('Extra_counts_test1',counts2)
+	scipy.io.mmwrite('Extra_counts_test2',counts3)
+
+
+
+def countWords(data):
+	counts = np.zeros( (len(data),1) )
+	row = 0
+	for line in data:
+		print line
+		l = len(line.split())
+		print l, ' ', line
+		counts[row] = l
+		row += 1
+
+	return counts	
 
 def buildSentiments(orig_data):
 	global _negative_words
@@ -476,7 +580,6 @@ def buildSentiments(orig_data):
 	positive_counter = 0
 	negative_counter = 0
 	for line in orig_data:
-		#print line
 		positive_counter = 0
 		negative_counter = 0
 		col = 0
@@ -495,11 +598,24 @@ def buildSentiments(orig_data):
 	#print sentiment
 	return sentiment
 
+#
+# 1) write to scipy.io - done
+# 2) new feature: number of words - done
+# 3) no stopwords - ok
+# 4) tfidf, tfidf-stemmed, (regular, stemmed)
+# 5) SIGNING OFF: Need to redo tweet transformations...
+
+
 if __name__ == "__main__":
     import sys
     jobType = 'train'
     
-    getFeatureMatrix2(str(sys.argv[1]),str(sys.argv[2]))
+    train = 'ourTrain.csv'
+    test1 = 'ourTestPass1.csv'
+    test2 = 'ourTestPass2.csv'
+
+    getFeatureMatrix2(train, test1, test2)
+    #getFeatureMatrix2(str(sys.argv[1]),str(sys.argv[2]))
     #writeDocMatrixToFile(dataMatrix,labels,'train')
     #ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[2]),'test')
     #writeDocMatrixToFile(dataMatrix,labels,'test')
