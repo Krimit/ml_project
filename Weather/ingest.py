@@ -191,6 +191,7 @@ def is_not_punct(char):
 	# keep dashes, all other punctuation gets removed
 	if char == '-': return True
 	if char == '#': return True #tweet hashtags
+	if char == '@': return True #replies etc.
 	if char in string.digits: return True #keep numbers
 	elif char in string.punctuation: return False
 	else: return True
@@ -198,15 +199,21 @@ def is_not_punct(char):
 def buildStateCorpus(states):
 	seenStates = list()
 	for state in states:
-		if not state[0] in seenStates:
-			seenStates.append(state[0])
+		s = state[0]
+		s = cleanNans(s)
+		s = s.lower()
+		if not s in seenStates:
+			seenStates.append(s)
 	return seenStates	
 
 def buildStateFeatures(stateCorpus, locations):
 	statesFeatures = np.zeros( (len(locations),len(stateCorpus)) )
 	row = 0
-	for s in locations:
-		if s[0] in stateCorpus:
+	for l in locations:
+		s = l[0]
+		s = cleanNans(s)
+		s = s.lower()
+		if s in stateCorpus:
 			statesFeatures[row][stateCorpus.index(s[0])] = 1
 		row += 1
 	
@@ -347,12 +354,10 @@ def getFeatureMatrix2( trainFilename, test1Filename, test2Filename):
 	print "done reading test2"
 
 	#writeOutLabels(train_labels, test1_labels, test2_labels)
-	#createExtraFeatures(train_data, test1_data, test2_data)
-
-
-
+	createExtraFeatures(train_data, test1_data, test2_data)
 	doTFIDF(train_tweets, test1_tweets, test1_tweets)
 
+	return
 	#np.save('test_labels', test_labels)
 
 	#combine strings in orig_data
@@ -481,23 +486,77 @@ def stemIt(data):
 	
 	return tweets	
 
+def processIt(data):
+
+	tweets = []
+
+	for line in data:
+		x = list()
+		#print line
+		for word in line.split():
+			#print word
+			word = word.lower()
+			if shouldFilter(word):
+				s_words = replacePuncts(word)
+				#to_token=filter(is_not_punct,word)
+				print s_words, ' <- ', word
+				for w in s_words:
+					x.append(w) 
+			#return
+			else:	
+				x.append(word)
+				print '-> ' , word , ' <-'
+		tweets.append(' '.join(x))
+	
+	return tweets	
+
+def replacePuncts(word):
+	p = '\"#$%&\'()*+,-./:;<=>@[\]^_`{|}~'
+	exclude = set(string.punctuation)
+	
+	# seperate ! and ? at end of word
+	if word[len(word)-1] in ['!', '?']:
+		last = word[len(word)-1]
+		s_words = replacePuncts(word[:-1])
+		s_words.append(last)
+		return s_words
+	else: 
+		for i in string.punctuation:
+			word = word.replace(i, ' ')
+		#newWord = ''.join(ch for ch in word if ch not in exclude)
+
+
+	return word.split()	
+
+def shouldFilter(word):
+	if word[0] in string.digits: return False #dont filter digits
+	if word == '{link}': return False # don't filter links
+	if word[0] == '#': return False
+	if word[0] == '@': return False
+	if False in [x not in string.letters for x in word]: 
+		return True
+	else: return False #leave symbols alone, as they might be smilys etx :-) , :(
+	return True
+
 def doBigrams(data):
 	hv = HashingVectorizer()
 	hv.transform(data)
 
 def doTFIDF(train, test1, test2):
 	steemedTrain = stemIt(train)
-	print "done stemming tweets"
 	steemedTest1 = stemIt(test1)
-	print "done stemming tweets"
 	steemedTest2 = stemIt(test2)
 	print "done stemming tweets"
 
+	regTrain = processIt(train)
+	regTest1 = processIt(test1)
+	regTest2 = processIt(test2)
+
 	vectorizer = TfidfVectorizer(ngram_range=(1, 3), min_df=1)
 
-	X = vectorizer.fit_transform(train) 
-	Xtest1 = vectorizer.transform(test1)
-	Xtest2 = vectorizer.transform(test2)
+	X = vectorizer.fit_transform(regTrain) 
+	Xtest1 = vectorizer.transform(regTest1)
+	Xtest2 = vectorizer.transform(regTest2)
 	scipy.io.mmwrite('train_reg_dataM',X, field='real')
 	scipy.io.mmwrite('test1_reg_dataM',Xtest1, field='real')
 	scipy.io.mmwrite('test2_reg_dataM',Xtest2, field='real')
@@ -607,14 +666,32 @@ def buildSentiments(orig_data):
 
 
 if __name__ == "__main__":
-    import sys
-    jobType = 'train'
-    
-    train = 'ourTrain.csv'
-    test1 = 'ourTestPass1.csv'
-    test2 = 'ourTestPass2.csv'
+	import sys
+	jobType = 'train'
 
-    getFeatureMatrix2(train, test1, test2)
+	train = 'ourTrain.csv'
+	test1 = 'ourTestPass1.csv'
+	test2 = 'ourTestPass2.csv'
+
+	testa = ':-)'
+	testb = '60.0c'
+	testc = '{link}'
+
+	print shouldFilter(testa)
+	print shouldFilter(testb)
+	print shouldFilter(testc)
+
+	a = 'cool!'
+	b = 'almost.there'
+	c = 'wh?y'
+	d = '#num#'
+
+	print replacePuncts(a)
+	print replacePuncts(b)
+	print replacePuncts(c)
+	print replacePuncts(d)
+
+	getFeatureMatrix2(train, test1, test2)
     #getFeatureMatrix2(str(sys.argv[1]),str(sys.argv[2]))
     #writeDocMatrixToFile(dataMatrix,labels,'train')
     #ids, dataMatrix, labels = getFeatureMatrix(str(sys.argv[2]),'test')
