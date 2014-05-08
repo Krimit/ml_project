@@ -354,8 +354,8 @@ def getFeatureMatrix2( trainFilename, test1Filename, test2Filename):
 	print "done reading test2"
 
 	#writeOutLabels(train_labels, test1_labels, test2_labels)
-	createExtraFeatures(train_data, test1_data, test2_data)
-	doTFIDF(train_tweets, test1_tweets, test1_tweets)
+	#createExtraFeatures(train_data, test1_data, test2_data)
+	doTFIDF(train_tweets, test1_tweets, test2_tweets)
 
 	return
 	#np.save('test_labels', test_labels)
